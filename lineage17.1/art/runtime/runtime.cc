@@ -167,7 +167,7 @@
 
 //patch by Youlor
 //++++++++++++++++++++++++++++
-#include "unpacker/unpacker.h"
+#include "sunlake/sunlake.h"
 //++++++++++++++++++++++++++++
 
 #ifdef ART_TARGET_ANDROID
@@ -1914,7 +1914,7 @@ void Runtime::RegisterRuntimeNativeMethods(JNIEnv* env) {
   register_sun_misc_Unsafe(env);
   //patch by Youlor
   //++++++++++++++++++++++++++++
-  Unpacker::register_cn_youlor_Unpacker(env);
+  Sunlake::register_Sunlake(env);
   //++++++++++++++++++++++++++++
 }
 

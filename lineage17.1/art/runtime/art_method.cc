@@ -52,7 +52,7 @@
 #include "vdex_file.h"
 //patch by Youlor
 //++++++++++++++++++++++++++++
-#include "unpacker/unpacker.h"
+#include "sunlake/sunlake.h"
 //++++++++++++++++++++++++++++
 
 namespace art {
@@ -332,7 +332,7 @@ void ArtMethod::Invoke(Thread* self, uint32_t* args, uint32_t args_size, JValue*
   if (UNLIKELY(!runtime->IsStarted() ||
                (self->IsForceInterpreter() && !IsNative() && !IsProxyMethod() && IsInvokable()) ||
                Dbg::IsForcedInterpreterNeededForCalling(self, this)
-               || (Unpacker::isFakeInvoke(self, this) && !this->IsNative()))) {
+               || (Sunlake::isFakeInvoke(self, this) && !this->IsNative()))) {
     //++++++++++++++++++++++++++++
     if (IsStatic()) {
       art::interpreter::EnterInterpreterFromInvoke(
@@ -347,7 +347,7 @@ void ArtMethod::Invoke(Thread* self, uint32_t* args, uint32_t args_size, JValue*
     //patch by Youlor
     //++++++++++++++++++++++++++++
     //如果是主动调用fake invoke并且是native方法则不执行
-    if (Unpacker::isFakeInvoke(self, this) && this->IsNative()) {
+    if (Sunlake::isFakeInvoke(self, this) && this->IsNative()) {
       // Pop transition.
       self->PopManagedStackFragment(fragment);
       return;

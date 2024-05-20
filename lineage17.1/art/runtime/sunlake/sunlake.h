@@ -1,5 +1,5 @@
-#ifndef ART_RUNTIME_UNPACKER_H_
-#define ART_RUNTIME_UNPACKER_H_
+#ifndef ART_RUNTIME_SUNLAKE_H_
+#define ART_RUNTIME_SUNLAKE_H_
 
 #include "jni/jni_internal.h"
 #include "native/native_util.h"
@@ -17,7 +17,7 @@ namespace art {
 class ArtMethod;
 class Thread;
 
-class HIDDEN Unpacker {
+class HIDDEN Sunlake {
 private:
   //获取dump目录
   static std::string getDumpDir();
@@ -63,7 +63,7 @@ public:
   static bool beforeInstructionExecute(Thread *self, ArtMethod *method, uint32_t dex_pc, int inst_count) REQUIRES_SHARED(Locks::mutator_lock_);
   static bool afterInstructionExecute(Thread *self, ArtMethod *method, uint32_t dex_pc, int inst_count) REQUIRES_SHARED(Locks::mutator_lock_);
   //动态注册native方法
-  static void register_cn_youlor_Unpacker(JNIEnv* env);
+  static void register_Sunlake(JNIEnv* env);
 };
 
 }

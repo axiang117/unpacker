@@ -39,7 +39,7 @@
 
 //patch by Youlor
 //++++++++++++++++++++++++++++
-#include "unpacker/unpacker.h"
+#include "sunlake/sunlake.h"
 //++++++++++++++++++++++++++++
 
 namespace art {
@@ -264,7 +264,7 @@ static inline JValue Execute(
   
   //patch by Youlor
   //++++++++++++++++++++++++++++
-  if (Unpacker::isFakeInvoke(self, shadow_frame.GetMethod())) {
+  if (Sunlake::isFakeInvoke(self, shadow_frame.GetMethod())) {
     //如果是主动调用fake invoke则强制走switch型解释器
     kInterpreterImplKind = kSwitchImplKind;
   }

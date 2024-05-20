@@ -1,4 +1,4 @@
-#include "unpacker.h"
+#include "sunlake.h"
 #include "base/macros.h"
 #include "../libartbase/base/globals.h"
 #include "instrumentation.h"
@@ -15,7 +15,7 @@
 #include <fcntl.h>
 #include <string>
 
-#define ULOG_TAG "unpacker"
+#define ULOG_TAG "sunlake"
 #define TOSTR(fmt) #fmt
 #define UFMT TOSTR([%s:%d])
 
@@ -26,7 +26,7 @@
 #define ULOGV(fmt, ...) __android_log_print(ANDROID_LOG_VERBOSE, ULOG_TAG, UFMT fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 
 
-#define UNPACKER_WORKSPACE "unpacker"
+#define UNPACKER_WORKSPACE "sunlake"
 
 namespace art {
 
@@ -43,11 +43,30 @@ static std::list<const DexFile*> Unpacker_dex_files_;
 static ObjPtr<mirror::ClassLoader> Unpacker_class_loader_ = nullptr;
 static std::map<std::string, int> Unpacker_method_fds_;
 
-std::string Unpacker::getDumpDir() {
-  return "/data/local/tmp/unpacker";
+std::string Sunlake::getDumpDir() {
+  Thread* const self = Thread::Current();
+  JNIEnv* env = self->GetJniEnv();
+  jclass cls_ActivityThread = env->FindClass("android/app/ActivityThread");
+  jmethodID mid_currentActivityThread = env->GetStaticMethodID(cls_ActivityThread, "currentActivityThread", "()Landroid/app/ActivityThread;");
+  jobject obj_ActivityThread = env->CallStaticObjectMethod(cls_ActivityThread, mid_currentActivityThread);
+  jfieldID fid_mInitialApplication = env->GetFieldID(cls_ActivityThread, "mInitialApplication", "Landroid/app/Application;");
+  jobject obj_mInitialApplication = env->GetObjectField(obj_ActivityThread, fid_mInitialApplication);
+  jclass cls_Context = env->FindClass("android/content/Context");
+  jmethodID mid_getApplicationInfo = env->GetMethodID(cls_Context, "getApplicationInfo",
+                                                      "()Landroid/content/pm/ApplicationInfo;");
+  jobject obj_app_info = env->CallObjectMethod(obj_mInitialApplication, mid_getApplicationInfo);
+  jclass cls_ApplicationInfo = env->FindClass("android/content/pm/ApplicationInfo");
+  jfieldID fid_dataDir = env->GetFieldID(cls_ApplicationInfo, "dataDir", "Ljava/lang/String;");
+  jstring dataDir = (jstring)env->GetObjectField(obj_app_info, fid_dataDir);
+  const char *cstr_dataDir = env->GetStringUTFChars(dataDir, nullptr);
+  std::string dump_dir(cstr_dataDir);
+  dump_dir += "/";
+  dump_dir += UNPACKER_WORKSPACE;
+  env->ReleaseStringUTFChars(dataDir, cstr_dataDir);
+  return dump_dir;
 }
 
-std::string Unpacker::getDexDumpPath(const DexFile* dex_file) {
+std::string Sunlake::getDexDumpPath(const DexFile* dex_file) {
   std::string dex_location = dex_file->GetLocation();
   size_t size = dex_file->Size();
   //替换windows文件不支持的字符
@@ -61,7 +80,7 @@ std::string Unpacker::getDexDumpPath(const DexFile* dex_file) {
   return dump_path;
 }
 
-std::string Unpacker::getMethodDumpPath(ArtMethod* method) {
+std::string Sunlake::getMethodDumpPath(ArtMethod* method) {
   CHECK(method->GetDeclaringClass() != nullptr) << method;
   const DexFile& dex_file = method->GetDeclaringClass()->GetDexFile();
   std::string dex_location = dex_file.GetLocation();
@@ -77,7 +96,7 @@ std::string Unpacker::getMethodDumpPath(ArtMethod* method) {
   return dump_path;
 }
 
-cJSON* Unpacker::createJson() {
+cJSON* Sunlake::createJson() {
   cJSON *json;
   cJSON *dexes;
 
@@ -93,7 +112,7 @@ bail:
   return json;
 }
 
-cJSON* Unpacker::parseJson() {
+cJSON* Sunlake::parseJson() {
   if (Unpacker_json_fd_ == -1) {
     return nullptr;
   }
@@ -125,7 +144,7 @@ cJSON* Unpacker::parseJson() {
   return json;
 }
 
-void Unpacker::writeJson() {
+void Sunlake::writeJson() {
   if (Unpacker_json_fd_ == -1) {
     return;
   }
@@ -143,7 +162,7 @@ void Unpacker::writeJson() {
   free(json_str);
 }
 
-std::list<const DexFile*> Unpacker::getDexFiles() {
+std::list<const DexFile*> Sunlake::getDexFiles() {
   std::list<const DexFile*> dex_files;
   Thread* const self = Thread::Current();
   ClassLinker* class_linker = Runtime::Current()->GetClassLinker();
@@ -161,7 +180,7 @@ std::list<const DexFile*> Unpacker::getDexFiles() {
   return dex_files;
 }
 
-ObjPtr<mirror::ClassLoader> Unpacker::getAppClassLoader() {
+ObjPtr<mirror::ClassLoader> Sunlake::getAppClassLoader() {
   Thread* const self = Thread::Current();
   ScopedObjectAccessUnchecked soa(self);
   JNIEnv* env = self->GetJniEnv();
@@ -176,7 +195,7 @@ ObjPtr<mirror::ClassLoader> Unpacker::getAppClassLoader() {
   return soa.Decode<mirror::ClassLoader>(obj_classLoader);
 }
 
-void Unpacker::invokeAllMethods() {
+void Sunlake::invokeAllMethods() {
   //dump类的六种status: 
   //Ready: 该类准备dump
   //Resolved: ResolveClass成功
@@ -301,7 +320,7 @@ void Unpacker::invokeAllMethods() {
       PointerSize pointer_size = class_linker->GetImagePointerSize();
       auto methods = klass->GetDeclaredMethods(pointer_size);
 
-      Unpacker::enableFakeInvoke();
+      Sunlake::enableFakeInvoke();
       for (auto& m : methods) {
         ArtMethod* method = &m;
         if (!method->IsProxyMethod() && method->IsInvokable()) {
@@ -319,7 +338,7 @@ void Unpacker::invokeAllMethods() {
           method->Invoke(self, args.data(), args_size, &result, method->GetShorty());
         }
       }
-      Unpacker::disableFakeInvoke();
+      Sunlake::disableFakeInvoke();
 
       cJSON_ReplaceItemInObject(current, "status", cJSON_CreateString("Dumped"));
       writeJson();
@@ -327,7 +346,7 @@ void Unpacker::invokeAllMethods() {
   }
 }
 
-void Unpacker::dumpAllDexes() {
+void Sunlake::dumpAllDexes() {
   for (const DexFile* dex_file : Unpacker_dex_files_) {
     std::string dump_path = getDexDumpPath(dex_file);
     if (access(dump_path.c_str(), F_OK) != -1) {
@@ -355,7 +374,7 @@ void Unpacker::dumpAllDexes() {
   }
 }
 
-void Unpacker::init() {
+void Sunlake::init() {
   Unpacker_fake_invoke_ = false;
   Unpacker_self_ = Thread::Current();
   Unpacker_dump_dir_ = getDumpDir();
@@ -364,7 +383,7 @@ void Unpacker::init() {
   mkdir(Unpacker_dex_dir_.c_str(), 0777);
   Unpacker_method_dir_ = getDumpDir() + "/method";
   mkdir(Unpacker_method_dir_.c_str(), 0777);
-  Unpacker_json_path_ = getDumpDir() + "/unpacker.json";
+  Unpacker_json_path_ = getDumpDir() + "/sunlake.json";
   Unpacker_json_fd_ = -1;
   Unpacker_json_fd_ = open(Unpacker_json_path_.c_str(), O_RDWR | O_CREAT, 0777);
   if (Unpacker_json_fd_ == -1) {
@@ -380,7 +399,7 @@ void Unpacker::init() {
   Unpacker_class_loader_ = getAppClassLoader();
 }
 
-void Unpacker::fini() {
+void Sunlake::fini() {
   Unpacker_fake_invoke_ = false;
   Unpacker_real_invoke_ = false;
   Unpacker_self_ = nullptr;
@@ -393,9 +412,9 @@ void Unpacker::fini() {
   cJSON_Delete(Unpacker_json_);
 }
 
-void Unpacker::unpack() {
+void Sunlake::unpack() {
   ScopedObjectAccess soa(Thread::Current());
-  ULOGI("%s", "unpack begin!");
+  ULOGW("%s", "unpack begin!");
   //1. 初始化
   init();
   //2. dump所有dex
@@ -404,41 +423,41 @@ void Unpacker::unpack() {
   invokeAllMethods();
   //4. 还原
   fini();
-  ULOGI("%s", "unpack end!");
+  ULOGW("%s", "unpack end!");
 }
 
-void Unpacker::enableFakeInvoke() {
+void Sunlake::enableFakeInvoke() {
   Unpacker_fake_invoke_ = true;
 }
 
-void Unpacker::disableFakeInvoke() {
+void Sunlake::disableFakeInvoke() {
   Unpacker_fake_invoke_ = false;
 }
 
-bool Unpacker::isFakeInvoke(Thread *self, ArtMethod */*method*/) {
+bool Sunlake::isFakeInvoke(Thread *self, ArtMethod */*method*/) {
   if (Unpacker_fake_invoke_ && self == Unpacker_self_) {
       return true;
   }
   return false;
 }
 
-void Unpacker::enableRealInvoke() {
+void Sunlake::enableRealInvoke() {
   Unpacker_real_invoke_ = true;
 }
 
-void Unpacker::disableRealInvoke() {
+void Sunlake::disableRealInvoke() {
   Unpacker_real_invoke_ = false;
 }
 
-bool Unpacker::isRealInvoke(Thread *self, ArtMethod */*method*/) {
+bool Sunlake::isRealInvoke(Thread *self, ArtMethod */*method*/) {
   if (Unpacker_real_invoke_ && self == Unpacker_self_) {
       return true;
   }
   return false;
 }
 
-void Unpacker::dumpMethod(ArtMethod *method, int nop_size) {
-  std::string dump_path = Unpacker::getMethodDumpPath(method);
+void Sunlake::dumpMethod(ArtMethod *method, int nop_size) {
+  std::string dump_path = Sunlake::getMethodDumpPath(method);
   int fd = -1;
   if (Unpacker_method_fds_.find(dump_path) != Unpacker_method_fds_.end()) {
     fd = Unpacker_method_fds_[dump_path];
@@ -483,8 +502,8 @@ void Unpacker::dumpMethod(ArtMethod *method, int nop_size) {
 }
 
 //继续解释执行返回false, dump完成返回true
-bool Unpacker::beforeInstructionExecute(Thread *self, ArtMethod *method, uint32_t dex_pc, int inst_count) {
-  if (Unpacker::isFakeInvoke(self, method)) {
+bool Sunlake::beforeInstructionExecute(Thread *self, ArtMethod *method, uint32_t dex_pc, int inst_count) {
+  if (Sunlake::isFakeInvoke(self, method)) {
     CodeItemInstructionAccessor accessor(method->DexInstructionData());
     const uint16_t* const insns = accessor.Insns();
     const Instruction* inst = Instruction::At(insns + dex_pc);
@@ -493,7 +512,7 @@ bool Unpacker::beforeInstructionExecute(Thread *self, ArtMethod *method, uint32_
 
     //对于一般的方法抽取(非ijiami, najia), 直接在第一条指令处dump即可
     if (inst_count == 0 && opcode != Instruction::GOTO && opcode != Instruction::GOTO_16 && opcode != Instruction::GOTO_32) {
-      Unpacker::dumpMethod(method);
+      Sunlake::dumpMethod(method);
       return true;
     }
     //ijiami, najia的特征为: goto: goto_decrypt; nop; ... ; return; const vx, n; invoke-static xxx; goto: goto_origin;
@@ -503,8 +522,8 @@ bool Unpacker::beforeInstructionExecute(Thread *self, ArtMethod *method, uint32_
       return false;
     } else if (inst_count == 2 && (opcode == Instruction::INVOKE_STATIC || opcode == Instruction::INVOKE_STATIC_RANGE)) {
       //让这条指令真正的执行
-      Unpacker::disableFakeInvoke();
-      Unpacker::enableRealInvoke();
+      Sunlake::disableFakeInvoke();
+      Sunlake::enableRealInvoke();
       return false;
     } else if (inst_count == 3) {
       if (opcode >= Instruction::GOTO && opcode <= Instruction::GOTO_32) {
@@ -516,54 +535,54 @@ bool Unpacker::beforeInstructionExecute(Thread *self, ArtMethod *method, uint32_
         switch (first_opcode)
         {
         case Instruction::GOTO:
-          Unpacker::dumpMethod(method, 2);
+          Sunlake::dumpMethod(method, 2);
           break;
         case Instruction::GOTO_16:
-          Unpacker::dumpMethod(method, 4);
+          Sunlake::dumpMethod(method, 4);
           break;
         case Instruction::GOTO_32:
-          Unpacker::dumpMethod(method, 8);
+          Sunlake::dumpMethod(method, 8);
           break;
         default:
           break;
         }
       } else {
-        Unpacker::dumpMethod(method);
+        Sunlake::dumpMethod(method);
       }
       return true;
     }
-    Unpacker::dumpMethod(method);
+    Sunlake::dumpMethod(method);
     return true;
   }
   return false;
 }
 
-bool Unpacker::afterInstructionExecute(Thread *self, ArtMethod *method, uint32_t dex_pc, int inst_count) {
+bool Sunlake::afterInstructionExecute(Thread *self, ArtMethod *method, uint32_t dex_pc, int inst_count) {
   CodeItemInstructionAccessor accessor(method->DexInstructionData());
   const uint16_t* const insns = accessor.Insns();
   const Instruction* inst = Instruction::At(insns + dex_pc);
   uint16_t inst_data = inst->Fetch16(0);
   Instruction::Code opcode = inst->Opcode(inst_data);
   if (inst_count == 2 && (opcode == Instruction::INVOKE_STATIC || opcode == Instruction::INVOKE_STATIC_RANGE) 
-      && Unpacker::isRealInvoke(self, method)) {
-    Unpacker::enableFakeInvoke();
-    Unpacker::disableRealInvoke();
+      && Sunlake::isRealInvoke(self, method)) {
+    Sunlake::enableFakeInvoke();
+    Sunlake::disableRealInvoke();
   }
   return false;
 }
 
 //注册native方法
 
-static void Unpacker_unpackNative(JNIEnv*, jclass) {
-  Unpacker::unpack();
+static void Sunlake_unpackNative(JNIEnv*, jclass) {
+  Sunlake::unpack();
 }
 
 static JNINativeMethod gMethods[] = {
-  NATIVE_METHOD(Unpacker, unpackNative, "()V")
+  NATIVE_METHOD(Sunlake, unpackNative, "()V")
 };
 
-void Unpacker::register_cn_youlor_Unpacker(JNIEnv* env) {
-  REGISTER_NATIVE_METHODS("cn/youlor/Unpacker");
+void Sunlake::register_Sunlake(JNIEnv* env) {
+  REGISTER_NATIVE_METHODS("cn/Sunlake");
 }
 
 }

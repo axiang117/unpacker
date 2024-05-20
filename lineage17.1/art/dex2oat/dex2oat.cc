@@ -1097,7 +1097,7 @@ class Dex2Oat final {
 
   //patch by Youlor
   //++++++++++++++++++++++++++++
-  const char* UNPACK_CONFIG = "/data/local/tmp/unpacker.config";
+  const char* UNPACK_CONFIG = "/data/local/tmp/sunlake.config";
   bool ShouldUnpack() {
     std::ifstream config(UNPACK_CONFIG);
     std::string line;

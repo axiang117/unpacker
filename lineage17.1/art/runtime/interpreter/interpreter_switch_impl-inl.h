@@ -40,7 +40,7 @@
 #include "verifier/method_verifier.h"
 //patch by Youlor
 //++++++++++++++++++++++++++++
-#include "unpacker/unpacker.h"
+#include "sunlake/sunlake.h"
 //++++++++++++++++++++++++++++
 
 namespace art {
@@ -2659,7 +2659,7 @@ ATTRIBUTE_NO_SANITIZE_ADDRESS void ExecuteSwitchImplCpp(SwitchImplContext* ctx) 
     //patch by Youlor
     //++++++++++++++++++++++++++++
     inst_count++;                                                                       
-    bool dumped = Unpacker::beforeInstructionExecute(self, shadow_frame.GetMethod(),
+    bool dumped = Sunlake::beforeInstructionExecute(self, shadow_frame.GetMethod(),
                                                      dex_pc, inst_count);
     if (dumped) {
       ctx->result = JValue();
@@ -2701,7 +2701,7 @@ DEX_INSTRUCTION_LIST(OPCODE_CASE)
     }
     //patch by Youlor
     //++++++++++++++++++++++++++++
-    bool dumped2 = Unpacker::afterInstructionExecute(self, shadow_frame.GetMethod(), dex_pc, inst_count);
+    bool dumped2 = Sunlake::afterInstructionExecute(self, shadow_frame.GetMethod(), dex_pc, inst_count);
     if (dumped2) {
       ctx->result = JValue();
       return;

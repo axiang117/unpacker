@@ -2016,7 +2016,7 @@ static std::string format_dexopt_error(int status, const char* dex_path) {
 
 //patch by Youlor
 //++++++++++++++++++++++++++++
-const char* UNPACK_CONFIG = "/data/local/tmp/unpacker.config";
+const char* UNPACK_CONFIG = "/data/local/tmp/sunlake.config";
 bool ShouldUnpack(const char* pkgname) {
     std::ifstream config(UNPACK_CONFIG);
     std::string line;

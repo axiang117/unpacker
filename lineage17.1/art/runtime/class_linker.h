@@ -1393,7 +1393,7 @@ class ClassLinker {
   friend class VMClassLoader;  // for LookupClass and FindClassInBaseDexClassLoader.
   //patch by Youlor
   //++++++++++++++++++++++++++++
-  friend class Unpacker;
+  friend class Sunlake;
   //++++++++++++++++++++++++++++
   ART_FRIEND_TEST(ClassLinkerTest, RegisterDexFileName);  // for DexLock, and RegisterDexFileLocked
   ART_FRIEND_TEST(mirror::DexCacheMethodHandlesTest, Open);  // for AllocDexCache
